@@ -260,16 +260,18 @@ services:
       timeout: 10s
       retries: 3
 
+  
   postgres-db:
-    image: postgres:latest
+    image: postgres:18.2    # pin a specific 18.x version
     environment:
       POSTGRES_DB: banking-microservices
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: eu1189
     ports:
       - "5433:5432"
+    # Mount the PARENT directory; the image will store data under /var/lib/postgresql/18/main
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     networks:
       - banking-microservices-network
     healthcheck:
@@ -277,6 +279,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
 
   pg-admin:
     image: dpage/pgadmin4:latest
