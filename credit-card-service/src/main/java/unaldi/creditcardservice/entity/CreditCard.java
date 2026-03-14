@@ -1,20 +1,22 @@
 package unaldi.creditcardservice.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.time.LocalDate;
 
-/**
- * Copyright (c) 2024
- * All rights reserved.
- *
- * @author Emre Ünaldı
- */
 @Entity
-@Table(name = "credit_cards")
+@Table(
+    name = "credit_cards",
+    indexes = {
+        @Index(name = "idx_credit_cards_user_id", columnList = "user_id"),
+        @Index(name = "idx_credit_cards_bank_id", columnList = "bank_id")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_credit_cards_card_number", columnNames = {"card_number"})
+    }
+)
 @Getter
 @Setter
 @AllArgsConstructor
@@ -25,32 +27,39 @@ public class CreditCard {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // String → keep NotBlank
     @NotBlank
     @Column(name = "card_number", nullable = false, length = 20)
     private String cardNumber;
 
-    @NotBlank
+    // IDs/numbers/dates → NotNull (not NotBlank)
+    @NotNull
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Past
+    // A card must not be expired at creation/update
+    @NotNull
+    @FutureOrPresent
     @Column(name = "expiration_date", nullable = false)
-    @NotBlank
     private LocalDate expirationDate;
 
+    // 3 or 4 digits CVV
     @NotBlank
+    @Pattern(regexp = "\\d{3,4}", message = "CVV must be 3 or 4 digits")
     @Column(name = "cvv", nullable = false, length = 4)
     private String cvv;
 
-    @NotBlank
+    @NotNull
+    @PositiveOrZero
     @Column(name = "credit_limit", nullable = false)
     private Double creditLimit;
 
-    @NotBlank
+    @NotNull
+    @PositiveOrZero
     @Column(name = "debt_amount", nullable = false)
     private Double debtAmount;
 
-    @NotBlank
+    @NotNull
     @Column(name = "bank_id", nullable = false)
     private Long bankId;
 }

@@ -9,6 +9,12 @@ import lombok.Getter;
  * @author Emre Ünaldı
  */
 @Getter
+
+public enum Role {
+    ADMIN, CUSTOMER
+}
+
+
 public enum Gender {
     MALE("Male"),
     FEMALE("Female");

@@ -2,17 +2,11 @@ package unaldi.accountservice.entity.enums;
 
 import lombok.Getter;
 
-/**
- * Copyright (c) 2024
- * All rights reserved.
- *
- * @author Emre Ünaldı
- */
 @Getter
 public enum AccountType {
-    CURRENT("Current"),
+    CREDIT("Credit"),
     DEPOSIT("Deposit"),
-    CREDIT("Credit");
+    SAVINGS("Savings"); // ✅ was CURRENT, align to SAVINGS for frontend
 
     private final String message;
 

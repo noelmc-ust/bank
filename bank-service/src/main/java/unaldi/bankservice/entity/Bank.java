@@ -1,17 +1,27 @@
 package unaldi.bankservice.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.*;
 
 /**
  * Copyright (c) 2024
  * All rights reserved.
- *
- * @author Emre Ünaldı
  */
 @Entity
-@Table(name = "banks")
+@Table(
+    name = "banks",
+    indexes = {
+        @Index(name = "idx_banks_bank_code", columnList = "bank_code"),
+        @Index(name = "idx_banks_branch_code", columnList = "branch_code")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_banks_bank_branch_code", columnNames = {"bank_code", "branch_code"}),
+        @UniqueConstraint(name = "uk_banks_account_number", columnNames = {"account_number"})
+    }
+)
 @Getter
 @Setter
 @AllArgsConstructor
@@ -47,10 +57,15 @@ public class Bank {
     private String address;
 
     @NotBlank
+    @Email
     @Column(name = "email", nullable = false, length = 250)
     private String email;
 
     @NotBlank
+    @Pattern(
+        regexp = "^[+\\d][\\d\\-\\s]{6,}$",
+        message = "Phone number must contain digits and may include +, spaces or hyphens"
+    )
     @Column(name = "phone_number", nullable = false, length = 250)
     private String phoneNumber;
 }

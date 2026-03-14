@@ -6,6 +6,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import unaldi.userservice.entity.User;
 import unaldi.userservice.entity.dto.UserDTO;
+import unaldi.userservice.entity.enums.Role;
 import unaldi.userservice.entity.request.UserSaveRequest;
 import unaldi.userservice.entity.request.UserUpdateRequest;
 import unaldi.userservice.repository.UserRepository;
@@ -24,35 +25,48 @@ import unaldi.userservice.utils.result.Result;
 import unaldi.userservice.utils.result.SuccessDataResult;
 import unaldi.userservice.utils.result.SuccessResult;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-/**
- * Copyright (c) 2024
- * All rights reserved.
- *
- * @author Emre Ünaldı
- */
 @Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final LogProducer logProducer;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, LogProducer logProducer) {
+    public UserServiceImpl(UserRepository userRepository,
+                           LogProducer logProducer,
+                           PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.logProducer = logProducer;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @CacheEvict(value = Caches.USERS_CACHE, allEntries = true, condition = "#result.success != false")
     @Override
     public DataResult<UserDTO> save(UserSaveRequest userSaveRequest) {
         User user = UserMapper.INSTANCE.convertToSaveUser(userSaveRequest);
-        this.userRepository.save(user);
 
-        logProducer.sendToLog(prepareLogRequest(OperationType.POST,Messages.USER_CREATED));
+        // ✅ Encode password
+        if (userSaveRequest.password() != null && !userSaveRequest.password().isBlank()) {
+            user.setPassword(passwordEncoder.encode(userSaveRequest.password()));
+        }
+
+        // ✅ Default role for new users (CUSTOMER) if none provided
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            Set<Role> roles = new HashSet<>();
+            roles.add(Role.CUSTOMER);
+            user.setRoles(roles);
+        }
+
+        userRepository.save(user);
+        logProducer.sendToLog(prepareLogRequest(OperationType.POST, Messages.USER_CREATED));
 
         return new SuccessDataResult<>(
                 UserMapper.INSTANCE.convertToUserDTO(user),
@@ -64,17 +78,30 @@ public class UserServiceImpl implements UserService {
     @CacheEvict(value = Caches.USERS_CACHE, allEntries = true, condition = "#result.success != false")
     @Override
     public DataResult<UserDTO> update(UserUpdateRequest userUpdateRequest) {
-        if (!this.userRepository.existsById(userUpdateRequest.id())) {
-            throw new UserNotFoundException(ExceptionMessages.USER_NOT_FOUND);
+        User existing = this.userRepository
+                .findById(userUpdateRequest.id())
+                .orElseThrow(() -> new UserNotFoundException(ExceptionMessages.USER_NOT_FOUND));
+
+        // ✅ Apply partial updates
+        if (userUpdateRequest.username() != null) existing.setUsername(userUpdateRequest.username());
+        if (userUpdateRequest.email() != null) existing.setEmail(userUpdateRequest.email());
+        if (userUpdateRequest.firstName() != null) existing.setFirstName(userUpdateRequest.firstName());
+        if (userUpdateRequest.lastName() != null) existing.setLastName(userUpdateRequest.lastName());
+        if (userUpdateRequest.phoneNumber() != null) existing.setPhoneNumber(userUpdateRequest.phoneNumber());
+        if (userUpdateRequest.birthDate() != null) existing.setBirthDate(userUpdateRequest.birthDate());
+        if (userUpdateRequest.gender() != null) existing.setGender(userUpdateRequest.gender());
+
+        // ✅ Encode password only if new one provided
+        if (userUpdateRequest.password() != null && !userUpdateRequest.password().isBlank()) {
+            existing.setPassword(passwordEncoder.encode(userUpdateRequest.password()));
         }
 
-        User user = UserMapper.INSTANCE.convertToUpdateUser(userUpdateRequest);
-        this.userRepository.save(user);
+        this.userRepository.save(existing);
 
-        logProducer.sendToLog(prepareLogRequest(OperationType.PUT,Messages.USER_UPDATED));
+        logProducer.sendToLog(prepareLogRequest(OperationType.PUT, Messages.USER_UPDATED));
 
         return new SuccessDataResult<>(
-                UserMapper.INSTANCE.convertToUserDTO(user),
+                UserMapper.INSTANCE.convertToUserDTO(existing),
                 Messages.USER_UPDATED
         );
     }
@@ -93,7 +120,7 @@ public class UserServiceImpl implements UserService {
 
         this.userRepository.deleteById(user.getId());
 
-        logProducer.sendToLog(prepareLogRequest(OperationType.DELETE,Messages.USER_DELETED));
+        logProducer.sendToLog(prepareLogRequest(OperationType.DELETE, Messages.USER_DELETED));
 
         return new SuccessResult(Messages.USER_DELETED);
     }
@@ -106,7 +133,7 @@ public class UserServiceImpl implements UserService {
                 .map(UserMapper.INSTANCE::convertToUserDTO)
                 .orElseThrow(() -> new UserNotFoundException(ExceptionMessages.USER_NOT_FOUND));
 
-        logProducer.sendToLog(prepareLogRequest(OperationType.GET,Messages.USER_FOUND));
+        logProducer.sendToLog(prepareLogRequest(OperationType.GET, Messages.USER_FOUND));
 
         return new SuccessDataResult<>(userDTO, Messages.USER_FOUND);
     }
@@ -116,7 +143,7 @@ public class UserServiceImpl implements UserService {
     public DataResult<List<UserDTO>> findAll() {
         List<User> userList = this.userRepository.findAll();
 
-        logProducer.sendToLog(prepareLogRequest(OperationType.GET,Messages.USERS_LISTED));
+        logProducer.sendToLog(prepareLogRequest(OperationType.GET, Messages.USERS_LISTED));
 
         return new SuccessDataResult<>(
                 UserMapper.INSTANCE.convertUserDTOs(userList),
@@ -127,8 +154,7 @@ public class UserServiceImpl implements UserService {
     private LogRequest prepareLogRequest(
             OperationType operationType,
             String message
-    )
-    {
+    ) {
         return LogRequest
                 .builder()
                 .serviceName("user-service")

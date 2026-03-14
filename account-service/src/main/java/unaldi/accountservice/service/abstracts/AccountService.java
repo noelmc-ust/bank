@@ -13,8 +13,6 @@ import java.util.List;
 /**
  * Copyright (c) 2024
  * All rights reserved.
- *
- * @author Emre Ünaldı
  */
 public interface AccountService {
     DataResult<AccountDTO> save(AccountSaveRequest accountSaveRequest);
@@ -22,6 +20,11 @@ public interface AccountService {
     Result deleteById(Long accountId);
     DataResult<AccountDTO> findById(Long accountId);
     DataResult<List<AccountDTO>> findAll();
+
+    // Used by other services (kept)
     DataResult<UserResponse> findAccountUserByUserId(Long userId);
     DataResult<BankResponse> findAccountBankByBankId(Long bankId);
+
+    // ✅ New: used by the frontend “My Accounts” pages
+    DataResult<List<AccountDTO>> findByUserId(Long userId);
 }

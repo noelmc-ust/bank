@@ -1,22 +1,22 @@
 package unaldi.invoiceservice.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Future;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.*;
 import lombok.*;
 import unaldi.invoiceservice.entity.enums.PaymentStatus;
 
 import java.time.LocalDate;
 
-/**
- * Copyright (c) 2024
- * All rights reserved.
- *
- * @author Emre Ünaldı
- */
 @Entity
-@Table(name = "invoices")
+@Table(
+    name = "invoices",
+    indexes = {
+        @Index(name = "idx_invoices_user_id", columnList = "user_id")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_invoices_invoice_number", columnNames = {"invoice_number"})
+    }
+)
 @Getter
 @Setter
 @AllArgsConstructor
@@ -31,26 +31,27 @@ public class Invoice {
     @Column(name = "invoice_number", nullable = false, length = 20)
     private String invoiceNumber;
 
-    @NotBlank
+    @NotNull
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @NotBlank
+    @NotNull
+    @PositiveOrZero
     @Column(name = "amount", nullable = false)
     private Double amount;
 
-    @Past
+    @NotNull
+    @PastOrPresent
     @Column(name = "invoice_date", nullable = false)
-    @NotBlank
     private LocalDate invoiceDate;
 
-    @Future
+    @NotNull
+    @FutureOrPresent
     @Column(name = "due_date", nullable = false)
-    @NotBlank
     private LocalDate dueDate;
 
-    @NotBlank
+    @NotNull
     @Enumerated(EnumType.STRING)
-    @Column(name = "payment_status", nullable = false)
+    @Column(name = "payment_status", nullable = false, length = 20)
     private PaymentStatus paymentStatus;
 }

@@ -1,22 +1,17 @@
 package unaldi.logservice.model.request;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import unaldi.logservice.model.enums.LogType;
 import unaldi.logservice.model.enums.OperationType;
 
 import java.time.LocalDateTime;
 
-/**
- * Copyright (c) 2024
- * All rights reserved.
- *
- * @author Emre Ünaldı
- */
 public record LogSaveRequest(
-         String serviceName,
-         OperationType operationType,
-         LogType logType,
-         String message,
-         LocalDateTime timestamp,
-         String exception
-){
-}
+        @NotBlank String serviceName,
+        @NotNull OperationType operationType,
+        @NotNull LogType logType,
+        @NotBlank String message,
+        @NotNull LocalDateTime timestamp,
+        String exception
+) {}

@@ -12,8 +12,6 @@ import java.util.List;
 /**
  * Copyright (c) 2024
  * All rights reserved.
- *
- * @author Emre Ünaldı
  */
 public interface InvoiceService {
     DataResult<InvoiceDTO> save(InvoiceSaveRequest invoiceSaveRequest);
@@ -22,4 +20,7 @@ public interface InvoiceService {
     DataResult<InvoiceDTO> findById(Long invoiceId);
     DataResult<List<InvoiceDTO>> findAll();
     DataResult<UserResponse> findInvoiceUserByUserId(Long userId);
+
+    // ✅ New: used by frontend “My Invoices”
+    DataResult<List<InvoiceDTO>> findByUserId(Long userId);
 }

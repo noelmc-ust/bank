@@ -5,29 +5,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.server.ResponseStatusException;
+import unaldi.bankservice.utils.constant.ExceptionMessages;
+import unaldi.bankservice.utils.exception.customExceptions.BankNotFoundException;
+import unaldi.bankservice.utils.exception.dto.ExceptionResponse;
 import unaldi.bankservice.utils.rabbitMQ.enums.LogType;
 import unaldi.bankservice.utils.rabbitMQ.enums.OperationType;
 import unaldi.bankservice.utils.rabbitMQ.producer.LogProducer;
 import unaldi.bankservice.utils.rabbitMQ.request.LogRequest;
-import unaldi.bankservice.utils.constant.ExceptionMessages;
-import unaldi.bankservice.utils.exception.customExceptions.BankNotFoundException;
-import unaldi.bankservice.utils.exception.dto.ExceptionResponse;
 import unaldi.bankservice.utils.result.DataResult;
 import unaldi.bankservice.utils.result.ErrorDataResult;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-/**
- * Copyright (c) 2024
- * All rights reserved.
- *
- * @author Emre Ünaldı
- */
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
@@ -39,27 +35,60 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BankNotFoundException.class)
-    public ResponseEntity<DataResult<ExceptionResponse>> handleUserNotFoundException(Exception exception, WebRequest request) {
-        log.error("BankNotFoundException occurred : {0}", exception);
-
+    public ResponseEntity<DataResult<ExceptionResponse>> handleBankNotFoundException(Exception exception, WebRequest request) {
+        log.error("BankNotFoundException occurred: {}", exception.getMessage(), exception);
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(new ErrorDataResult<>(
                         prepareExceptionResponse(exception, HttpStatus.NOT_FOUND, request),
-                        ExceptionMessages.BANK_NOT_FOUND)
-                );
+                        ExceptionMessages.BANK_NOT_FOUND
+                ));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<DataResult<ExceptionResponse>> handleResponseStatusException(
+            ResponseStatusException exception, WebRequest request) {
+
+        HttpStatus status = HttpStatus.resolve(exception.getStatusCode().value());
+        if (status == null) status = HttpStatus.BAD_REQUEST;
+
+        if (status == HttpStatus.FORBIDDEN) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorDataResult<>(
+                            prepareExceptionResponse(exception, HttpStatus.FORBIDDEN, request),
+                            exception.getReason() != null ? exception.getReason() : "Forbidden"
+                    ));
+        }
+
+        return ResponseEntity
+                .status(status)
+                .body(new ErrorDataResult<>(
+                        prepareExceptionResponse(exception, status, request),
+                        exception.getReason() != null ? exception.getReason() : status.getReasonPhrase()
+                ));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<DataResult<ExceptionResponse>> handleAccessDeniedException(
+            AccessDeniedException exception, WebRequest request) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(new ErrorDataResult<>(
+                        prepareExceptionResponse(exception, HttpStatus.FORBIDDEN, request),
+                        "Forbidden"
+                ));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<DataResult<ExceptionResponse>> handleAllException(Exception exception, WebRequest request) {
-        log.error("Exception occurred : {0}", exception);
-
+        log.error("Exception occurred: {}", exception.getMessage(), exception);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorDataResult<>(
                         prepareExceptionResponse(exception, HttpStatus.BAD_REQUEST, request),
-                        ExceptionMessages.BAD_REQUEST)
-                );
+                        ExceptionMessages.BAD_REQUEST
+                ));
     }
 
     private ExceptionResponse prepareExceptionResponse(Exception exception, HttpStatus httpStatus, WebRequest request) {
@@ -81,14 +110,8 @@ public class GlobalExceptionHandler {
                 .build();
     }
 
-    private LogRequest prepareLogRequest(
-            OperationType operationType,
-            String message,
-            String exception
-    )
-    {
-        return LogRequest
-                .builder()
+    private LogRequest prepareLogRequest(OperationType operationType, String message, String exception) {
+        return LogRequest.builder()
                 .serviceName("bank-service")
                 .operationType(operationType)
                 .logType(LogType.ERROR)
